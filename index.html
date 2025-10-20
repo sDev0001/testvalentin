@@ -1,0 +1,384 @@
+<html>
+<head>
+    <title>3D Secure Test Page</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <link rel="stylesheet" href="ow/ow.css" type="text/css">
+    <script src="js/jquery-3.1.1.min.js"></script>
+    <script src="js/jsrsasign-all-min.js"></script>
+    <script src="js/egw_utils.js"></script>
+    <script src="js/tdsinfo.js"></script>
+    <script src="js/chance.min.js"></script>
+
+    <script language="JavaScript">
+
+        function init() {
+            document.getElementById("order").value = generateOrderId();
+            document.getElementById("timestamp").value = getTimeStamp();
+            document.getElementById("m_info").value = tdsInfo;
+            document.getElementById("nonce").value = chance.hash({length: 32});
+        }
+
+        /* Return message for MAC */
+        function get_mac_msg() {
+            var msg = "";
+            var order = document.getElementById("order").value;
+            var trtype = document.getElementById("trtype").value;
+            var amount = document.getElementById("amount").value;
+            var timestamp = document.getElementById("timestamp").value;
+            var nonce = document.getElementById("nonce").value;
+
+            var msg = "" + order.length + order + nonce.length + nonce;
+            msg = msg + "" + timestamp.length + timestamp;
+            msg = msg + "" + trtype.length + trtype + amount.length + amount;
+
+            console.log('Message sign : ' + msg);
+            return msg;
+        }
+
+        /* Calculate HMAC SHA256 sign */
+        function do_HMAC_SHA256_Sign() {
+            // Build message to sign
+            var msg = get_mac_msg();
+
+            // ============================================================
+            // HMAC secret key in base64
+            // ============================================================
+            //var secretKey = "BlLLD7G6RQRNVJZB3PAXIGftRehEvLK8";
+            //var secretKeyBytes = CryptoJS.enc.Base64.parse(secretKey);
+            // ============================================================
+            // HMAC secret key in hex encoded string
+            // ============================================================
+            var secretKeyBytes = CryptoJS.enc.Hex.parse("0652cb0fb1ba45044d549641dcf0172067ed45e844bcb2bc");
+            // ============================================================
+            // clear (string buffer) HMAC secret key
+            // ============================================================
+            //var secretKeyBytes = "qwertyuiqwertyuiqwertyui";
+
+            // Build hasn
+            var hash = CryptoJS.HmacSHA256(msg, secretKeyBytes);
+            // Convert to hex encoded string
+            var hex = CryptoJS.enc.Hex.stringify(hash);
+            document.getElementById("p_sign").value = hex;
+            console.log('HMAC sign : ' + hex);
+        }
+
+
+        /* Calculate RSA sign */
+        function do_RSA_Sign_md5() {
+            var msg = get_mac_msg();
+            var hashAlg = 'md5';
+            var rsa = new RSAKey();
+            rsa.readPrivateKeyFromPEMString($('#privkey').val());
+            var hSig = rsa.sign(msg, hashAlg);
+            var hex = linebrk(hSig, 64);
+            document.getElementById("p_sign").value = hex;
+            document.getElementById("msg").value = msg;
+            console.log('RSA sign : ' + hex);
+        }
+
+        function do_RSA_Sign_sha256() {
+            // Build message to sign
+            var msg = get_mac_msg();
+            var hashAlg = 'sha256';
+            var rsa = new RSAKey();
+            rsa.readPrivateKeyFromPEMString( $('#privkey').val() );
+            var hSig = rsa.sign(msg, hashAlg);
+            var hex = linebrk(hSig, 64);
+            document.getElementById("p_sign").value = hex;
+            document.getElementById("msg").value = msg;
+            console.log( 'RSA sign : ' + hex );
+        }
+
+        function clickSubmit() {
+            var selectedSignType = document.querySelector('input[name="signType"]:checked').value;
+            if (selectedSignType === 'MD5') {
+                do_RSA_Sign_md5();
+            } else if (selectedSignType === 'SHA256') {
+                do_RSA_Sign_sha256();
+            }
+        }
+
+    </script>
+</head>
+
+<body bgcolor="#f0f0f0" text="#000000" leftMargin=0 topMargin=0 marginheight="0" marginwidth="0" onload="init()">
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+    <tr>
+        <td width="317" valign="middle"><img src="ow/pic/spacer.gif" width="41" height="80"><img src="ow/pic/logo.gif"
+                                                                                                 width="205"
+                                                                                                 height="62"></td>
+        <td width="164"><img src="ow/pic/spacer.gif" width="176" height="30"></td>
+        <td width="329"><img src="ow/pic/cubes.gif" width="329" height="81"></td>
+    </tr>
+</table>
+<img src="ow/pic/blue.gif" width="100%" height="5"><br>
+
+<table width="100%" border="0" cellspacing="0" cellpadding="0" class="maintxt">
+    <tr>
+        <td>
+            <!-- https://ecomt.victoriabank.md/cgi-bin/cgi_link -->
+            <!-- https://vb059.vb.md/cgi-bin/cgi_link -->
+            <form ACTION="https://vb059.vb.md/cgi-bin/cgi_link" METHOD="POST">
+                <center>
+                    <br><br>
+                    <tr>
+                        <td>
+                            <div align=right>Order amount:</div>
+                        </td>
+                        <td><input id="amount" TYPE="TEXT" NAME="AMOUNT" VALUE="22" SIZE="12" MAXLENGTH="12"></input>
+                        </td>
+                    </tr>
+
+                    <!-- Transaction currency -->
+                    <tr>
+                        <td>
+                            <div align=right>Order currency:</div>
+                        </td>
+                        <td><select name="CURRENCY" size=1>
+                            <option value="USD">USD</option>
+                            <option selected value="MDL">MDL</option>
+                            <option value="EUR">EUR</option>
+                        </select>
+                        </td>
+                    </tr>
+
+                    <!-- Order id -->
+                    <tr>
+                        <td>
+                            <div align=right>Order number:</div>
+                        </td>
+                        <td>
+                            <div align=left><input id="order" TYPE="TEXT" NAME="ORDER" VALUE="100001" SIZE="16"
+                                                   MAXLENGTH="20"></input></div>
+                        </td>
+                    </tr>
+
+
+                    <!-- Terminal ID -->
+                    <tr>
+                        <td>
+                            <div align=right>Terminal ID:</div>
+                        </td>
+                        <td>
+                            <div align=left><input id="terminal" TYPE="TEXT" NAME="TERMINAL" VALUE="" SIZE="16"
+                                                   MAXLENGTH="28"></input></div>
+                        </td>
+                    </tr>
+
+                    <!-- Transaction type -->
+                    <tr>
+                        <td>
+                            <div align=right>Transaction type:</div>
+                        </td>
+                        <td><select id="trtype" name="TRTYPE" size=1>
+                            <option selected value="0">AUTH(0)</option>
+                        </select>
+                        </td>
+                    </tr>
+                    <!-- Order description -->
+                    <tr>
+                        <td>
+                            <div align=right>Order description:</div>
+                        </td>
+                        <td>
+                            <div align=left><input id="desc" TYPE="TEXT" NAME="DESC" VALUE="test" SIZE="60"
+                                                   MAXLENGTH="50"></input></div>
+                        </td>
+                    </tr>
+
+                    <!-- Merchant IP or domain name -->
+                    <tr>
+                        <td>
+                            <div align=right>Merchant URL (IP or domain name):</div>
+                        </td>
+                        <td>
+                            <div align=left><input TYPE="TEXT" NAME="MERCH_URL" VALUE="www.test.com" SIZE="60"
+                                                   MAXLENGTH="60"></input></div>
+                        </td>
+                    </tr>
+
+                    <!-- Merchant name -->
+                    <tr>
+                        <td>
+                            <div align=right>Merchant name:</div>
+                        </td>
+                        <td>
+                            <div align=left><input TYPE="TEXT" NAME="MERCH_NAME" VALUE="E-SHOP" SIZE="60"
+                                                   MAXLENGTH="60"></input></div>
+                        </td>
+                    </tr>
+
+                    <!-- MERCH_ADDRESS -->
+                    <tr>
+                        <td>
+                            <div align=right>MERCH_ADDRESS:</div>
+                        </td>
+                        <td>
+                            <div align=left><input TYPE="TEXT" NAME="MERCH_ADDRESS" VALUE="Adresa E-SHOP" SIZE="60"
+                                                   MAXLENGTH="60"></input></div>
+                        </td>
+                    </tr>
+
+                    <!-- Client e-mail address -->
+                    <tr>
+                        <td>
+                            <div align=right>Email to notify:</div>
+                        </td>
+                        <td>
+                            <div align=left>
+                                <input TYPE="TEXT" NAME="EMAIL" VALUE="test@mail.com" SIZE="60" MAXLENGTH="60"></input>
+                            </div>
+                        </td>
+                    </tr>
+
+
+                    <!-- COUNTRY -->
+                    <tr>
+                        <td>
+                            <div align=right>COUNTRY:</div>
+                        </td>
+                        <td>
+                            <div align=left><input TYPE="TEXT" NAME="COUNTRY" VALUE="md" SIZE="60"
+                                                   MAXLENGTH="2"></input></div>
+                        </td>
+                    </tr>
+
+                    <!-- MERCH_ADDRESS -->
+                    <tr>
+                        <td>
+                            <div align=right>MERCH_ADDRESS:</div>
+                        </td>
+                        <td>
+                            <div align=left><input TYPE="TEXT" NAME="MERCH_ADDRESS" VALUE="ADDRESS" SIZE="60"
+                                                   MAXLENGTH="2"></input></div>
+                        </td>
+                    </tr>
+
+                    <!-- MERCH_GMT -->
+                    <tr>
+                        <td>
+                            <div align=right>MERCH_GMT:</div>
+                        </td>
+                        <td>
+                            <div align=left><input TYPE="TEXT" NAME="MERCH_GMT" VALUE="2" SIZE="60"
+                                                   MAXLENGTH="2"></input></div>
+                        </td>
+                    </tr>
+
+                    <!-- Timestamp -->
+                    <tr>
+                        <td>
+                            <div align=right>Timestamp:</div>
+                        </td>
+                        <td>
+                            <div align=left><input id="timestamp" TYPE="TEXT" NAME="TIMESTAMP" SIZE="60"
+                                                   VALUE="20110627060100" MAXLENGTH="8"></input></div>
+                        </td>
+                    </tr>
+
+                    <!-- MAC sign value -->
+                    <tr>
+                        <td>
+                            <div align=right>MAC sign:</div>
+                        </td>
+                        <td>
+                            <div align=left><input id="p_sign" TYPE="TEXT" NAME="P_SIGN" SIZE="75" VALUE=""
+                                                   MAXLENGTH="8"></input></div>
+                        </td>
+                    </tr>
+
+                    <!-- MAC -->
+                    <tr>
+                        <td>
+                            <div align=right>MAC:</div>
+                        </td>
+                        <td>
+                            <div align=left><input id="msg" TYPE="TEXT" SIZE="75" VALUE="" MAXLENGTH="8"></input></div>
+                        </td>
+                    </
+
+                    <!-- NONCE value -->
+                    <tr>
+                        <td>
+                            <div align=right>NONCE:</div>
+                        </td>
+                        <td>
+                            <div align=left><input id="nonce" TYPE="TEXT" NAME="NONCE" SIZE="75"
+                                                   VALUE="11111111000000011111" MAXLENGTH="100"></input></div>
+                        </td>
+                    </tr>
+
+                    <!-- BACKREF -->
+                    <tr>
+                        <td>
+                            <div align=right>BACKREF:</div>
+                        </td>
+                        <td>
+                            <div align=left><input TYPE="TEXT" NAME="BACKREF" VALUE="https://www.test.md/" SIZE="50"
+                                                   MAXLENGTH="250"></input></div>
+                        </td>
+                    </tr>
+                    <!-- LANG -->
+                    <tr>
+                        <td>
+                            <div align=right>LANG:</div>
+                        </td>
+                        <td><select name="LANG" size=1>
+                            <option value="ro">RO</option>
+                            <option selected value="en">EN</option>
+                            <option value="ru">RU</option>
+                        </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><div align="right">Tip criptare:</div></td>
+                        <td>
+                            <input type="radio" name="signType" id="rsa" value="MD5" checked> MD5
+                            <input type="radio" name="signType" id="hmac" value="SHA256"> SHA-256
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div align="right">Private Key (.pem):</div>
+                        </td>
+                        <td>
+                            <input type="file" id="pemFileInput" accept=".pem">
+                            <textarea id="privkey" rows="15" cols="65" style="display: none;"></textarea>
+                        </td>
+                    </tr>
+                    <tr>
+                    <tr>
+                        <td></td>
+                        <td><br>
+                            <button type="submit" onclick="return clickSubmit()">Approve</button>
+                    <tr>
+                        <td></td>
+                        <td></td>
+                    </tr>
+
+
+                    <td style="display: none;">
+                        <div align=right><label for="privkey">Private RSA Key</label></div>
+                    </td>
+        </td>
+    </tr>
+    </td></tr></table>
+</center></form></td></tr></table><br>
+</body>
+</html>
+
+<script>
+    document.getElementById('pemFileInput').addEventListener('change', function (event) {
+        const file = event.target.files[0];
+
+        if (file && file.name.endsWith('.pem')) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('privkey').value = e.target.result;
+            };
+            reader.readAsText(file);
+        } else {
+            alert('Te rugăm să selectezi un fișier cu extensia .pem');
+        }
+    });
+</script>
